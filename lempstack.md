@@ -204,3 +204,150 @@ server {
 
 }
 ```
+
+You then need to activate your configuration by doing a sym- link (symbolic link) to the config file from Nginx’s sites-enabled directory:
+
+`$ sudo ln -s /etc/nginx/sites-available/projectLEMP /etc/nginx/sites-enabled/`
+
+You can test your configuration for any syntax errors by typing:
+
+`$ sudo nginx -t`
+
+```
+Output
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+```
+
+There's also a need to disable default Nginx host that is currently configured to listen on port 80, for this run:
+
+`sudo unlink /etc/nginx/sites-enabled/default`
+
+Reload Nginx to apply the changes:
+
+`$ sudo systemctl reload nginx`
+
+Next, we create an index.html file in that /var/www/Lempard so that we can test that your new server block works as expected:
+```
+sudo echo 'Hello LEMP from hostname' $(curl -s http://169.254.169.254/latest/meta-data/public-hostname) 'with public IP' $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4) > /var/www/Lempard/index.html
+```
+Visit your browser and try to open your website URL using IP address:
+
+*http://Public-IP-Address:80*
+
+We'd be leaving this file in place as a landing page for your application until we set up an index.php file to replace it. 
+
+### Testing PHP with Nginx
+The ideal thing to do now is to test and validate that Nginx can correctly hand .php files off to your PHP processor.
+
+We do this by creating a test PHP file in the document root. Open a new file called validate.php within the document root using whatever editor:
+
+`$ sudo vi /var/www/Lempard/validate.php`
+
+Type the following lines into the new file. This is a PHP code that will return information about your server:
+
+``<?php
+phpinfo();``
+
+You can now access this page in your web browser by visiting the  public IP address you’ve set, followed by /avlidate.php:
+
+http://`server_domain_or_IP`/validate.php
+You will see a web page containing detailed information about your server: *image
+
+This file is not meant to be long-lived as it contains senistive data about your PHP Server, so it's best removed immediately after viewing it.
+
+`$ sudo rm /var/www/Lempard/validate.php`
+
+###  Retrieving data from MySQL database with PHP
+
+This step is just to test if our PHP can query and successfully fetch data from the MySQL DB. 
+First, we start by creating a Test DB with a simple “To do list” and configure access to it, so the Nginx website would be able to query data from the DB and display it.
+
+We'll create and name the  database as *molo_db* and a user named *molo*.
+
+Connect to the MySQL console using the root account and create the db and user with the following commands:
+
+`$ sudo mysql`
+
+`mysql> CREATE DATABASE "molo_db";`
+
+`
+mysql>  CREATE USER "molo"@"%" IDENTIFIED WITH mysql_native_password BY '#@@8Ywyu';
+`
+
+>The following command creates a the new user using mysql_native_password as default authentication method. You should replace the password value with a secure password of your own choosing.
+
+Exit the MySQL shell with:
+
+`mysql> exit`
+
+Test if the new user has the proper permissions by logging in to the MySQL console again, this time using the custom user credentials:
+
+`$ mysql -u molo -p`
+
+Next, we’ll create a test table named todo_list. From the MySQL console, run the following statement:
+
+```
+CREATE TABLE example_database.todo_list (
+mysql>     item_id INT AUTO_INCREMENT,
+mysql>     content VARCHAR(255),
+mysql>     PRIMARY KEY(item_id)
+mysql> );
+```
+
+To confirm that the data was successfully saved to your table, run:
+
+`mysql> SELECT * FROM example_database.todo_list;`
+```
+Output
++---------+--------------------------+
+| item_id | content                  |
++---------+--------------------------+
+|       1 | My first important item  |
+|       2 | My second important item |
+|       3 | My third important item  |
+|       4 | and this one more thing  |
++---------+--------------------------+
+4 rows in set (0.000 sec)
+```
+
+You can exit the MySQL console:
+
+`mysql> exit`
+
+The next thing to do is to create a PHP script that will connect to MySQL and query for the content. 
+Create a new PHP file in your custom web root directory using your preferred editor:
+
+`$ sudo vi /var/www/Lempard/todo_list.php`
+
+The following PHP script connects to the MySQL database and queries for the content of the todo_list table, displays the results in a list. If there is a problem with the database connection, it will throw an exception.
+
+Copy this content into your todo_list.php script:
+```
+<?php
+$user = "molo";
+$password = "password";
+$database = "molo_db";
+$table = "todo_list";
+
+try {
+  $db = new PDO("mysql:host=localhost;dbname=$database", $user, $password);
+  echo "<h2>TODO</h2><ol>";
+  foreach($db->query("SELECT content FROM $table") as $row) {
+    echo "<li>" . $row['content'] . "</li>";
+  }
+  echo "</ol>";
+} catch (PDOException $e) {
+    print "Error!: " . $e->getMessage() . "<br/>";
+    die();
+}
+```
+Save and exit the file with *:wq*.
+
+You can now access this page in your web browser by visiting the public IP address configured for your website, followed by /todo_list.php:
+
+`http://<Public_domain_or_IP>/todo_list.php`
+
+You should see a page like this, showing the content you’ve inserted in your mysql table: *image
+
+Congratulations!! You've just set up your own LEMP Stack using an Azure Ubuntu VM.
