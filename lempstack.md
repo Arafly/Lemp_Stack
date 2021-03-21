@@ -1,14 +1,14 @@
-## Setting up and install LEMP Stack on Ubuntu (Using Azure VM)
+## Set up and install LEMP Stack on Ubuntu (Using Azure VM)
 ### Prerequisites
 1. Create an Azure account to be able to use the the CLI within the Azure Cloud Shell or use the Azure sandbox (you must have at least a Microsoft account https://account.microsoft.com/account)
-2. If you choose to install and use the CLI locally, this tutorial requires that you are running the Azure CLI version 2.0.30 or later. Run az --version to find the version. If you need to install or upgrade, see https://docs.microsoft.com/en-us/cli/azure/install-azure-cli.
+2. If you choose to install and use the CLI locally, ensure you are running the Azure CLI version 2.0.30 or later. Run az --version to find the version. If you need to install or upgrade, see https://docs.microsoft.com/en-us/cli/azure/install-azure-cli.
 
 We commence by creating a Linux VM and installing Nginx. but using the Azure CLI. The Azure CLI enables you to connect to Azure and run administrative commands on Azure resources. 
 
-Here, you access the Azure CLI from Azure Cloud Shell. Cloud Shell is a browser-based shell experience that you use to manage and develop Azure resources. Think of Cloud Shell as an interactive console that runs in the cloud.
+You access the Azure CLI from Azure Cloud Shell. Cloud Shell is a browser-based shell experience that you use to manage and develop Azure resources. Think of Cloud Shell as an interactive console that runs in the cloud.
 
 ### Create a resource group
-Create a resource group with the az group create command. An Azure resource group is a logical container into which Azure resources are deployed and managed.
+Create a resource group with the *az group* create command. An Azure resource group is a logical container into which Azure resources are deployed and managed.
 
 The following example creates a resource group named *myResourceGroup* in the *eastus* location.
 
@@ -16,7 +16,7 @@ The following example creates a resource group named *myResourceGroup* in the *e
 
 ### Create a Linux virtual machine
 
-Create a VM with the az vm create command.
+Create a VM with the *az vm create* command.
 
 The following example creates a VM named myVM and creates SSH keys if they do not already exist in a default key location. To use a specific set of keys, use the *--ssh-key-value* option. The command also sets azureuser as an administrator user name. You use this name later to connect to the VM.
 
@@ -28,7 +28,6 @@ az vm create \
     --admin-username azureuser \
     --generate-ssh-keys
 ```
-
 
 Your VM will take a few moments to come up.
 
@@ -101,7 +100,7 @@ Use the following command to create an SSH session with the virtual machine. Sub
 
 `ssh azureuser@40.68.254.142`
 
-###Install Nginx, MySQL, and PHP
+### Install Nginx, MySQL, and PHP
 
 ` sudo apt update && sudo apt install nginx`
 
@@ -114,7 +113,7 @@ You can now visit your Nginx server by opening a web browser of your choice and 
 
 `http://<Public-IP-Address>:80`
 
-*image
+![](./assets/Nginx_welcome.png)
 
 ### Installing the "M" in the Stack.
 Now that we've got a web server up and running, we need to install the database system to be able to store and manage data for your site. Due to our choice of stack, MySQL is the exact choice.
@@ -207,7 +206,7 @@ server {
 
 You then need to activate your configuration by doing a sym- link (symbolic link) to the config file from Nginx’s sites-enabled directory:
 
-`$ sudo ln -s /etc/nginx/sites-available/projectLEMP /etc/nginx/sites-enabled/`
+`$ sudo ln -s /etc/nginx/sites-available/Lempard /etc/nginx/sites-enabled/`
 
 You can test your configuration for any syntax errors by typing:
 
@@ -249,10 +248,13 @@ Type the following lines into the new file. This is a PHP code that will return 
 ``<?php
 phpinfo();``
 
-You can now access this page in your web browser by visiting the  public IP address you’ve set, followed by /avlidate.php:
+You can now access this page in your web browser by visiting the  public IP address you’ve set, followed by /validate.php:
 
 http://`server_domain_or_IP`/validate.php
-You will see a web page containing detailed information about your server: *image
+
+You will see a web page containing detailed information about your server
+
+![](./assets/172.png)
 
 This file is not meant to be long-lived as it contains senistive data about your PHP Server, so it's best removed immediately after viewing it.
 
@@ -348,6 +350,8 @@ You can now access this page in your web browser by visiting the public IP addre
 
 `http://<Public_domain_or_IP>/todo_list.php`
 
-You should see a page like this, showing the content you’ve inserted in your mysql table: *image
+You should see a page like this, showing the content you’ve inserted in your mysql table:
+
+![](./assets/todo_list.png)
 
 Congratulations!! You've just set up your own LEMP Stack using an Azure Ubuntu VM.
