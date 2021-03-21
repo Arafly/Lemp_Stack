@@ -1,56 +1,53 @@
 ## Setting up and install LEMP Stack on Ubuntu (Using Azure VM)
 ### Prerequisites
-1. Create an Azure account or use the Azure sandbox (you must have at least a Microsoft account https://account.microsoft.com/account)
+1. Create an Azure account to be able to use the the CLI within the Azure Cloud Shell or use the Azure sandbox (you must have at least a Microsoft account https://account.microsoft.com/account)
+2. If you choose to install and use the CLI locally, this tutorial requires that you are running the Azure CLI version 2.0.30 or later. Run az --version to find the version. If you need to install or upgrade, see https://docs.microsoft.com/en-us/cli/azure/install-azure-cli.
 
 We commence by creating a Linux VM and installing Nginx. but using the Azure CLI. The Azure CLI enables you to connect to Azure and run administrative commands on Azure resources. 
 
 Here, you access the Azure CLI from Azure Cloud Shell. Cloud Shell is a browser-based shell experience that you use to manage and develop Azure resources. Think of Cloud Shell as an interactive console that runs in the cloud.
 
-### Create a Linux virtual machine and install Nginx
+### Create a resource group
+Create a resource group with the az group create command. An Azure resource group is a logical container into which Azure resources are deployed and managed.
 
-Use the following Azure CLI commands to create a Linux VM and install Nginx. After your VM is created, you'll use the Custom Script Extension to install Nginx. The Custom Script Extension is an easy way to download and run scripts on your Azure VMs. It's just one of the many ways you can configure the system after your VM is up and running.
+The following example creates a resource group named *myResourceGroup* in the *eastus* location.
 
-1. From Cloud Shell, run the following az vm create command to create a Linux VM:
-   
+`az group create --name myResourceGroup --location eastus`
+
+### Create a Linux virtual machine
+
+Create a VM with the az vm create command.
+
+The following example creates a VM named myVM and creates SSH keys if they do not already exist in a default key location. To use a specific set of keys, use the *--ssh-key-value* option. The command also sets azureuser as an administrator user name. You use this name later to connect to the VM.
+
 ```
 az vm create \
-  --resource-group lint-6273d318-5953-42f5-baad-91d8ac4f935e \
-  --name my-vm \
-  --image UbuntuLTS \
-  --admin-username azureuser \
-  --generate-ssh-keys
+    --resource-group myResourceGroup \
+    --name myVM \
+    --image UbuntuLTS \
+    --admin-username azureuser \
+    --generate-ssh-keys
 ```
+
 
 Your VM will take a few moments to come up.
 
-You name the VM my-vm. You use this name to refer to the VM in later steps.
-
-2. Run the following az vm extension set command to configure Nginx on your VM:
-
+You name the VM *myVM*. You use this name and also the publicIpAddress to refer to the VM in later steps.
 ```
-az vm extension set \
-  --resource-group learn-6273d318-5953-42f5-baad-91d8ac4f935e \
-  --vm-name my-vm \
-  --name customScript \
-  --publisher Microsoft.Azure.Extensions \
-  --version 2.1 \
-  --settings '{"fileUris":["https://raw.githubusercontent.com/MicrosoftDocs/mslearn-welcome-to-azure/master/configure-nginx.sh"]}' \
-  --protected-settings '{"commandToExecute": "./configure-nginx.sh"}'
+{
+  "fqdns": "",
+  "id": "/subscriptions/<subscription ID>/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/myVM",
+  "location": "eastus",
+  "macAddress": "00-0D-3A-23-9A-49",
+  "powerState": "VM running",
+  "privateIpAddress": "10.0.0.4",
+  "publicIpAddress": "40.68.254.142",
+  "resourceGroup": "myResourceGroup"
+}
 ```
-This command uses the Custom Script Extension to run a Bash script on your VM. The script is stored on GitHub.
 
-While the command runs, you can choose to examine the Bash script from a separate browser tab.
-
-To summarize, the script:
-
->Runs apt-get update to download the latest package information from the internet. This step helps ensure that the next command can locate the latest version of the Nginx package.
-Installs Nginx.
-Sets the home page, /var/www/html/index.html, to print a welcome message that includes your VM's host name.
-
-### Access your web server
-In this procedure, you get the IP address for your VM and attempt to access your web server's home page.
-
-1. Run the following az vm list-ip-addresses command to get your VM's IP address and store the result as a Bash variable named 'IPADDRESS':
+You can also get access your ip by :
+1. Running the following az vm list-ip-addresses command to get your VM's IP address and store the result as a Bash variable named 'IPADDRESS':
 
 ```
 IPADDRESS="$(az vm list-ip-addresses \
@@ -63,3 +60,147 @@ IPADDRESS="$(az vm list-ip-addresses \
 You can view your VM's ip address by typing: 
 
 `echo $IPADDRESS`
+
+### Open port 80 for web traffic
+
+Naturally, beacuse this is an Azure VM, Network Security Group (NSG) is the equivalence of Security in AWS. Every VM on Azure is associated with at least one network security group. 
+
+First we examine the NSG to see the rules inherent. Run this command:
+
+```
+az network nsg rule list \
+  --resource-group [sandbox resource group name] \
+  --nsg-name my-vmNSG \
+  --query '[].{Name:name, Priority:priority, Port:destinationPortRange, Access:access}' \
+  --output table
+```
+
+Some few parameters used in the above command are worth explaining.
+
+>The --query argument used here is to help retrieve only the name, priority, affected ports, and access (Allow or Deny) for each rule.
+
+>The --output argument formats the output as a table so that it's easy to read (You can output in yaml or json if you want).
+
+```
+Output
+
+Name               Priority    Port    Access
+-----------------  ----------  ------  --------
+default-allow-ssh  1000        22      Allow
+```
+
+You see the default rule, default-allow-ssh. This rule allows inbound connections over port 22 (SSH), but the priority of this rule is 1000. Rules are processed in priority order, with lower numbers processed before higher numbers.
+
+Use the az vm open-port command to open the desired port.
+
+
+`az vm open-port --port 80 --resource-group myResourceGroup --name myVM`
+
+### SSH into your VM
+Use the following command to create an SSH session with the virtual machine. Substitute the correct public IP address of your virtual machine. In this example, the *azureuser* is the administrator user name set when you created the VM.
+
+`ssh azureuser@40.68.254.142`
+
+###Install Nginx, MySQL, and PHP
+
+` sudo apt update && sudo apt install nginx`
+
+By default, this installs Nginx and sets the home page, /var/www/html/index.html. 
+To verify that nginx was successfully installed and is running as a service in Ubuntu, run:
+
+`$ sudo systemctl status nginx`
+### Access your web server
+You can now visit your Nginx server by opening a web browser of your choice and try to access following url:
+
+`http://<Public-IP-Address>:80`
+
+*image
+
+### Installing the "M" in the Stack.
+Now that we've got a web server up and running, we need to install the database system to be able to store and manage data for your site. Due to our choice of stack, MySQL is the exact choice.
+
+Install the db with:
+
+`sudo apt install mysql-server`
+
+For more security. Run the command below
+
+`sudo mysql_secure_installation`
+
+You'd get a lot of prompts at this point. Pick your choice on discretion and as you deem fit.
+
+When you're done, test if you're able to log in 
+
+`sudo mysql`
+
+You can clear your screen with "CTRL + L" and exit the MySQL console, by typing:
+
+`mysql> exit`
+```
+Output 
+
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 10
+Server version: 8.0.23-0ubuntu0.20.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> exit
+Bye
+
+```
+### The final "P" in the S(t)ack
+While Apache embeds the PHP interpreter in each request, Nginx requires an external program to handle PHP processing and act as a bridge between the PHP interpreter itself and the web server. This allows for a better overall performance in most PHP-based websites, which is mostly why Nginx has a higher vote as the most preferred web server of choice. 
+
+You’ll need to install **php-fpm**, which stands for “PHP fastCGI process manager”, and tells Nginx to pass PHP requests to this software for processing. Additionally, you’ll also need **php-mysql**, a PHP module that allows PHP to communicate with MySQL-based databases. Core PHP packages will automatically be installed as dependencies.
+
+You can run:
+
+`$ sudo apt install php-fpm php-mysql`
+
+### Configuring Nginx to Use PHP Processor
+
+Nginx uses server blocks (similar to virtual hosts in Apache) to encapsulate configuration details and host more than one domain on a single server. 
+
+While the default is **/var/www/html** works well for a single site, it can become difficult to manage if you are hosting multiple sites. We’ll create a directory structure within /var/www for the our_domain website, leaving /var/www/html untouched as the default directory to be served if a client request does not match any other sites.
+
+Create the root web directory for our_domain as follows:
+
+`$ sudo mkdir /var/www/Lempard`
+
+Then, open a new config file in Nginx’s sites-available using your preferred command-line editor. Here, we’ll use vi:
+
+`$ sudo vi /etc/nginx/sites-available/Lempard`
+
+Paste in the following bare-bones configuration:
+
+```
+
+server {
+    listen 80;
+    server_name Lempard www.Lempard;
+    root /var/www/Lempard;
+
+    index index.html index.htm index.php;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;
+     }
+
+    location ~ /\.ht {
+        deny all;
+    }
+
+}
+```
